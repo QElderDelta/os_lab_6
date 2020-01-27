@@ -1,0 +1,166 @@
+\documentclass[a4paper, 12pt]{article}
+\usepackage{cmap}
+\usepackage[12pt]{extsizes}			
+\usepackage{mathtext} 				
+\usepackage[T2A]{fontenc}			
+\usepackage[utf8]{inputenc}			
+\usepackage[english,russian]{babel}
+\usepackage{setspace}
+\singlespacing
+\usepackage{amsmath,amsfonts,amssymb,amsthm,mathtools}
+\usepackage{fancyhdr}
+\usepackage{soulutf8}
+\usepackage{euscript}
+\usepackage{mathrsfs}
+\usepackage{listings}
+\pagestyle{fancy}
+\usepackage{indentfirst}
+\usepackage[top=10mm]{geometry}
+\rhead{}
+\lhead{}
+\renewcommand{\headrulewidth}{0mm}
+\usepackage{tocloft}
+\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}
+\usepackage[dvipsnames]{xcolor}
+
+\lstdefinestyle{mystyle}{ 
+	keywordstyle=\color{OliveGreen},
+	numberstyle=\tiny\color{Gray},
+	stringstyle=\color{BurntOrange},
+	basicstyle=\ttfamily\footnotesize,
+	breakatwhitespace=false,         
+	breaklines=true,                 
+	captionpos=b,                    
+	keepspaces=true,                 
+	numbers=left,                    
+	numbersep=5pt,                  
+	showspaces=false,                
+	showstringspaces=false,
+	showtabs=false,                  
+	tabsize=2
+}
+
+\lstset{style=mystyle}
+
+\begin{document}
+\thispagestyle{empty}	
+\begin{center}
+	Московский авиационный институт
+	
+	(Национальный исследовательский университет)
+	
+	Факультет "Информационные технологии и прикладная математика"
+	
+	Кафедра "Вычислительная математика и программирование"
+	
+\end{center}
+\vspace{40ex}
+\begin{center}
+	\textbf{\large{Лабораторная работа №6 по курсу\linebreak \textquotedblleft Операционные системы\textquotedblright}}
+\end{center}
+\vspace{35ex}
+\begin{flushright}
+	\textit{Студент: } Живалев Е.А.
+	
+	\vspace{2ex}
+	\textit{Группа: } М8О-206Б
+	
+	\vspace{2ex}
+	\textit{Преподаватель: } Соколов А.А.
+	
+	\vspace{2ex}
+	\textit{Вариант: } 26
+	
+	\vspace{2ex}
+	\textit{Оценка: } \underline{\quad\quad\quad\quad\quad\quad}
+	
+	 \vspace{2ex}
+	\textit{Дата: } \underline{\quad\quad\quad\quad\quad\quad}
+	
+	\vspace{2ex}
+	\textit{Подпись: } \underline{\quad\quad\quad\quad\quad\quad}
+	
+\end{flushright}
+
+\vspace{5ex}
+
+\begin{vfill}
+	\begin{center}
+		Москва, 2019
+	\end{center}	
+\end{vfill}
+\newpage
+
+\section{Задание}
+
+Реализовать распределенную систему по асинхронной обработке запросов. В данной
+распределенной системе должно существовать 2 вида узлов: «управляющий» и
+«вычислительный». Необходимо объединить данные узлы в соответствии с той топологией,
+которая определена вариантом. Связь между узлами необходимо осуществить при помощи
+технологии очередей сообщений. Также в данной системе необходимо предусмотреть проверку
+доступности узлов в соответствии с вариантом.
+
+Тип топологии: Дерево общего вида
+Тип команды: Локальный таймер
+Тип проверки доступности узлов: Пинг узла с указанным id
+
+\section{Описание работы программы}
+
+Программа разбита на файлы socketRoutine.hpp, socketRoutine.cpp(отвечают за работу с сокетами - получение и отправка сообщений, создание сокета), calcNode.cpp(содержат описание логики вычислительного узла), handlerNode.cpp\linebreak(содержит описание логики управляющего узла).
+
+Каждый вычислительный узел при создании получает номер порта родителя, к которому он должен подключиться, а также свой id. Внутри себя он содержит 3 хэш-таблицы, содержащие сокеты детей узла, их идентификаторы процессов и номера портов.
+
+При получении нового сообщения, адресованного конкретному узлу, строится путь до этого узла - вектор, содержащий id узлов на пути от управляющего к указанному и сообщение посылается в основной сокет, откуда согласно полученному пути пересылается через другие сокеты к необходимому узлу.
+\newpage
+
+\section{Исходный код}
+\textbf{\large{socketRoutine.hpp}}
+\lstinputlisting[language=C]{../socketRoutine.hpp}
+
+\textbf{\large{socketRoutine.cpp}}
+\lstinputlisting[language=C]{../socketRoutine.cpp}
+
+\textbf{\large{calcNode.cpp}}
+\lstinputlisting[language=C]{../calcNode.cpp}
+
+\textbf{\large{handlerNode.cpp}}
+\lstinputlisting[language=C]{../handlerNode.cpp}
+\newpage
+\section{Консоль}
+
+\begin{verbatim}
+qelderdelta@qelderdelta-UX331UA:~/Study/OS/lab6/build$ ./main
+create 2 3
+Ok: 13276
+create 3 2
+Ok: 13279
+create 4 2
+Ok: 13282
+create 5 3
+Ok: 13285
+ping 5
+Ok: 1
+ping 6
+Error: Not found
+ping 2
+Ok: 1
+exec 4 time
+Ok: 4: 0
+exec 4 start
+Ok:4
+exec 4 stop
+Ok:4
+exec 4 time
+Ok: 4: 10909
+exit
+qelderdelta@qelderdelta-UX331UA:~/Study/OS/lab6/build$ ps
+PID TTY          TIME CMD
+12523 pts/0    00:00:00 bash
+13290 pts/0    00:00:00 ps
+
+\end{verbatim}
+\newpage
+\section{Выводы}
+
+В ходе выполнения лабораторной работы я познакомился с очередью сообщений ZeroMQ, а конкретнее с сокетами, реализующими паттерн Request-Reply, а также получил опыт написания распределенных систем.
+\end{document}
