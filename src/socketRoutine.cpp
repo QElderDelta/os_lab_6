@@ -4,28 +4,34 @@
 bool SendMessage(zmq::socket_t& socket, const std::string& message) {
     zmq::message_t m(message.size());
     memcpy(m.data(), message.c_str(), message.size());
-    return socket.send(m);
+    try {
+        socket.send(m);
+        return true;
+    } catch(...) {
+        return false;
+    }
 }
 
-std::string RecieveMessage(zmq::socket_t& socket) {
+std::string ReceiveMessage(zmq::socket_t& socket) {
     zmq::message_t message;
-    bool messageRecieved;
+    bool messageReceived;
     try {
-        messageRecieved = socket.recv(&message);
+        messageReceived = socket.recv(&message);
     } catch(...) {
-        messageRecieved = false;
+        messageReceived = false;
     }
-    std::string recieved(static_cast<char*>(message.data()), message.size());
 
-    if(!messageRecieved || recieved.empty()) {
+    std::string received(static_cast<char*>(message.data()), message.size());
+    
+    if(!messageReceived || received.empty()) {
         return "Error: Node is unavailable";
     } else {
-        return recieved;
+        return received;
     }
 }
 
 int BindSocket(zmq::socket_t& socket) {
-    int port = 50000;
+    int port = 30000;
     std::string portTemplate = "tcp://127.0.0.1:";
     while(true) {
         try {
@@ -42,6 +48,6 @@ void CreateNode(int id, int portNumber) {
     char* arg0 = strdup("./calcNode");
     char* arg1 = strdup((std::to_string(id)).c_str());
     char* arg2 = strdup((std::to_string(portNumber)).c_str());
-    char* args[] = {arg0, arg1, arg2, NULL};
+    char* args[] = {arg0, arg1, arg2, nullptr};
     execv("./calcNode", args);
 }

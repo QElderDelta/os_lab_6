@@ -6,7 +6,7 @@
 
 bool SendMessage(zmq::socket_t& socket, const std::string& message);
 
-std::string RecieveMessage(zmq::socket_t& socket);
+std::string ReceiveMessage(zmq::socket_t& socket);
 
 int BindSocket(zmq::socket_t& socket);
 

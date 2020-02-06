@@ -64,7 +64,7 @@ public:
         }
     }
 private:
-    bool findNode(std::shared_ptr<TreeNode> current, int id, std::vector<int>& path) const {
+    bool findNode(const std::shared_ptr<TreeNode>& current, int id, std::vector<int>& path) const {
         if(!current) {
             return false;
         }
@@ -91,9 +91,13 @@ int main() {
     int childId = 0;
     zmq::context_t ctx(1);
     zmq::socket_t handlerSocket(ctx, ZMQ_REQ);
-    handlerSocket.setsockopt(ZMQ_SNDTIMEO, 2000);
-    handlerSocket.setsockopt(ZMQ_LINGER, 0);
+    handlerSocket.setsockopt(ZMQ_SNDTIMEO, 5000);
+    handlerSocket.setsockopt(ZMQ_LINGER, 5000);
+    handlerSocket.setsockopt(ZMQ_RCVTIMEO, 5000);
+    handlerSocket.setsockopt(ZMQ_REQ_CORRELATE, 1);
+    handlerSocket.setsockopt(ZMQ_REQ_RELAXED, 1);
     int portNumber = BindSocket(handlerSocket);
+    std::cout << portNumber << std::endl;
     while(true) {
         std::cin >> action;
         if(action == "create") {
@@ -111,7 +115,7 @@ int main() {
                     parentId = 0;
                     childId = nodeId;
                     SendMessage(handlerSocket, "pid");
-                    result = RecieveMessage(handlerSocket);
+                    result = ReceiveMessage(handlerSocket);
                 }
             } else {
                 if(!calcs.PathTo(nodeId).empty()) {
@@ -131,7 +135,7 @@ int main() {
                 }
                 s << " " << nodeId;
                 SendMessage(handlerSocket, s.str());
-                result = RecieveMessage(handlerSocket);
+                result = ReceiveMessage(handlerSocket);
             }
 
             if(result.substr(0, 2) == "Ok") {
@@ -147,7 +151,7 @@ int main() {
             std::cin >> nodeId;
             if(nodeId == childId) {
                 SendMessage(handlerSocket, "kill");
-                RecieveMessage(handlerSocket);
+                ReceiveMessage(handlerSocket);
                 kill(childPid, SIGTERM);
                 kill(childPid, SIGKILL);
                 childId = 0;
@@ -168,7 +172,7 @@ int main() {
                 s << " " << i;
             }
             SendMessage(handlerSocket, s.str());
-            std::string recieved = RecieveMessage(handlerSocket);
+            std::string recieved = ReceiveMessage(handlerSocket);
             if(recieved.substr(0, 2) == "Ok") {
                 calcs.Remove(nodeId);
             }
@@ -188,10 +192,9 @@ int main() {
             for(int i : path) {
                 s << " " << i;
             }
-            std::cout << std::endl;
             SendMessage(handlerSocket, s.str());
-            std::string recieved = RecieveMessage(handlerSocket);
-            std::cout << recieved << std::endl;
+            std::string received = ReceiveMessage(handlerSocket);
+            std::cout << received << std::endl;
         } else if(action == "ping") {
             if(childPid == 0) {
                 std::cout << "Error: Not found" << std::endl;
@@ -210,18 +213,23 @@ int main() {
             for(int i : path) {
                 s << " " << i;
             }
-            SendMessage(handlerSocket, s.str());
-            std::string recieved = RecieveMessage(handlerSocket);
-            std::cout << recieved << std::endl;
+            std::string received;
+            if(!SendMessage(handlerSocket, s.str())) {
+                received = "Node is unavailable";
+            } else {
+                received = ReceiveMessage(handlerSocket);
+            }
+            std::cout << received << std::endl;
         } else if(action == "exit") {
             SendMessage(handlerSocket, "kill");            
-            RecieveMessage(handlerSocket);
+            ReceiveMessage(handlerSocket);
             kill(childPid, SIGTERM);
             kill(childPid, SIGKILL);
             break;
         } else {
             std::cout << "Unknown command" << std::endl;
         }
+        action.clear();
     }
     return 0;
 }

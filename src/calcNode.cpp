@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
     auto time = 0;
     bool clockStarted = false;
     while(true) {
-        std::string action = RecieveMessage(parentSocket);
+        std::string action = ReceiveMessage(parentSocket);
         std::stringstream s(action);
         std::string command;
         s >> command;
@@ -43,8 +43,15 @@ int main(int argc, char* argv[]) {
             }
             s >> nodeId;
             if(size == 0) {
-                sockets.insert(std::make_pair(nodeId, zmq::socket_t(ctx, ZMQ_REQ)));
+                auto socket = zmq::socket_t(ctx, ZMQ_REQ);
+                socket.setsockopt(ZMQ_SNDTIMEO, 5000);
+                socket.setsockopt(ZMQ_LINGER, 5000);
+                socket.setsockopt(ZMQ_RCVTIMEO, 5000);
+                socket.setsockopt(ZMQ_REQ_CORRELATE, 1);
+                socket.setsockopt(ZMQ_REQ_RELAXED, 1);
+                sockets.emplace(nodeId, std::move(socket));
                 int port = BindSocket(sockets.at(nodeId));
+                std::cout << port << std::endl;
                 int pid = fork();
                 if(pid == -1) {
                     SendMessage(parentSocket, "Unable to fork");
@@ -54,7 +61,7 @@ int main(int argc, char* argv[]) {
                     ports[nodeId] = port;
                     pids[nodeId] = pid;
                     SendMessage(sockets.at(nodeId), "pid");
-                    SendMessage(parentSocket, RecieveMessage(sockets.at(nodeId)));
+                    SendMessage(parentSocket, ReceiveMessage(sockets.at(nodeId)));
                 }
             } else {
                 int nextId = path.front();
@@ -66,7 +73,7 @@ int main(int argc, char* argv[]) {
                 }
                 msg << " " << nodeId;
                 SendMessage(sockets.at(nextId), msg.str());
-                SendMessage(parentSocket, RecieveMessage(sockets.at(nextId)));
+                SendMessage(parentSocket, ReceiveMessage(sockets.at(nextId)));
             }
         } else if(command == "remove") {
             int size, nodeId;
@@ -78,7 +85,7 @@ int main(int argc, char* argv[]) {
             s >> nodeId;
             if(path.empty()) {
                 SendMessage(sockets.at(nodeId), "kill");
-                RecieveMessage(sockets.at(nodeId));
+                ReceiveMessage(sockets.at(nodeId));
                 kill(pids[nodeId], SIGTERM);
                 kill(pids[nodeId], SIGKILL);
                 pids.erase(nodeId);
@@ -96,7 +103,7 @@ int main(int argc, char* argv[]) {
                 }
                 msg << " " << nodeId;
                 SendMessage(sockets.at(nextId), msg.str());
-                SendMessage(parentSocket, RecieveMessage(sockets.at(nextId)));
+                SendMessage(parentSocket, ReceiveMessage(sockets.at(nextId)));
             }
         } else if(command == "exec") {
             int size;
@@ -132,7 +139,7 @@ int main(int argc, char* argv[]) {
                     msg << " " << i;
                 }
                 SendMessage(sockets.at(nextId), msg.str());
-                SendMessage(parentSocket, RecieveMessage(sockets.at(nextId)));
+                SendMessage(parentSocket, ReceiveMessage(sockets.at(nextId)));
             }
         } else if(command == "ping") {
             int size;
@@ -151,13 +158,18 @@ int main(int argc, char* argv[]) {
                 for(int i : path) {
                     msg << " " << i;
                 }
-                SendMessage(sockets.at(nextId), msg.str());
-                SendMessage(parentSocket, RecieveMessage(sockets.at(nextId)));
+                std::string received;
+                if(!SendMessage(sockets.at(nextId), msg.str())) {
+                    received = "Node is unavailable";
+                } else {
+                    received = ReceiveMessage(sockets.at(nextId));
+                }
+                SendMessage(parentSocket, received);
             }
         } else if(command == "kill") {
             for(auto& item : sockets) {
                 SendMessage(item.second, "kill");
-                RecieveMessage(item.second);
+                ReceiveMessage(item.second);
                 kill(pids[item.first], SIGTERM);
                 kill(pids[item.first], SIGKILL);
             }
